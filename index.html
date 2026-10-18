@@ -39,11 +39,20 @@ function render(s,hb){
   let h=`<div class="hero" style="background:${C[color]}${color==="yellow"||color==="gray"?";color:#111":""}"><h1>${KR[color]}</h1><div>${esc(s.summary)}</div>
     <small>기준일 ${esc(s.data_date)} · 갱신 ${s.updated_at?esc(new Date(s.updated_at).toLocaleString("ko-KR")):"-"}${stale&&isFinite(age)?" · ⚠ 마지막 성공 이후 "+Math.round(Math.max(0,age))+"시간":""}</small>
     ${s.sector_warning?`<div>⚠ 업종 집중: ${esc(s.sector_warning)}</div>`:""}</div>`;
+  h+=`<details class="card" open><summary style="margin:0 0 6px">용어·점수 설명</summary><div class="mut">
+    <b>PBR</b> (Price to Book Ratio, 주가순자산비율) = 주가 ÷ 1주당 순자산. 1.0이면 회사 장부상 재산 가치와 같은 값, 1 미만이면 장부가치보다 싸게 거래된다는 뜻.<br>
+    <b>PER</b> (Price to Earnings Ratio, 주가수익비율) = 주가 ÷ 1주당 순이익. 지금 이익이 이어지면 투자금을 회수하는 데 걸리는 햇수. 낮을수록 이익 대비 싸다. "추정PER"은 증권사가 예상한 올해 이익 기준(없으면 지난해 실적).<br>
+    <b>총점 100</b> = 저평가 50 + 질 20 + 수급 30. 막대는 총점.<br>
+    <b>저평가(0~50)</b> 얼마나 싼가. PBR≤1.0 10점 · 추정PER≤8 10점 · 배당≥4% 5점 · 같은 업종보다 30% 이상 싸면 PBR 5점·PER 5점 · 자기 3년 역사에서 하위 25%면 10점 · 52주 하위 30%면 5점.<br>
+    <b>질(0~20)</b> 꾸준히 돈을 버는 회사인가. 3년 평균 ROE(자기자본이익률)≥5% 8점 · 3년 연속 영업흑자 6점 · 3년 연속 배당 6점. 20이면 셋 다 통과.<br>
+    <b>수급(0~30)</b> 기관이 사기 시작했는가. 기관 20일 누적 순매수가 (+)로 전환 12점 · 20일 중 순매수일 13일 이상 6점 · 같은 기간 개인은 순매도 6점 · 외국인은 순매도 아님 6점.<br>
+    <b>3년PBR %</b> 지난 3년 중 지금보다 PBR이 낮았던 날의 비율. 10%면 3년 중 가장 싼 10% 구간. <b>싼 지 n개월</b>은 저평가 상태가 이어진 기간.<br>
+    종가 = 기준일 마감 가격(원). 금액 단위는 억 원(기관·개인·외국인은 순매수 수량×종가 근사).</div></details>`;
   const Wn=s.warnings||[];
   if(Wn.length)h+=`<div class="card"><b>⚠ 경고 ${Wn.length}건</b><ul style="margin:4px 0 0;padding-left:20px">${Wn.map(w=>`<li>${esc(w)}</li>`).join("")}</ul></div>`;
   h+=`<h2>보유·관찰 종목 (${H.length})</h2>`;
   for(const x of H){h+=`<div class="card"><div class="row"><b><span class="dot" style="background:${C[C[x.color]?x.color:"gray"]}"></span><a href="${nv(esc(x.code))}">${esc(x.name)}</a> <span class="mut">${esc(x.status)}</span></b>
-    <span class="mut">PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)}</span></div>
+    <span class="mut">종가 ${x.close!=null?f(x.close,0)+"원":"-"} · PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)}</span></div>
     ${x.reasons&&x.reasons.length?`<div>• ${x.reasons.map(esc).join("<br>• ")}</div>`:""}
     ${x.trigger?`<div class="mut">해소 트리거: ${esc(x.trigger)}</div>`:""}${x.invalidation?`<div class="mut">무효화 조건: ${esc(x.invalidation)}</div>`:""}
     ${x.next_check?`<div class="mut">다음 점검일 ${esc(x.next_check)}</div>`:""}</div>`;}
@@ -55,7 +64,8 @@ function render(s,hb){
   document.getElementById("app").innerHTML=h;}
 function cand(x){return `<div class="card"><div class="row"><b><a href="${nv(esc(x.code))}">${esc(x.name)}</a> <span class="mut">${esc(x.sector)}</span></b><b>${f(x.score,0)}</b></div>
   <div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(x.score)||0))}%"></i></div>
-  <div class="mut">저평가 ${f(x.val,0)} · 질 ${f(x.qual,0)} · 수급 ${f(x.flow,0)} · PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)} · 배당 ${f(x.div)}% · 3년PBR ${f(x.pbr_pct3y,0)}% · 싼 지 ${f(x.cheap_months,0)}개월</div>
+  <div class="mut">종가 ${x.close!=null?f(x.close,0)+"원":"-"} · PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)}</div>
+  <div class="mut">저평가 ${f(x.val,0)} · 질 ${f(x.qual,0)} · 수급 ${f(x.flow,0)} · 배당 ${f(x.div)}% · 3년PBR ${f(x.pbr_pct3y,0)}% · 싼 지 ${f(x.cheap_months,0)}개월</div>
   <div class="mut">기관20일 ${f(x.inst20_bn,0)}억 원 · 개인 ${f(x.indiv20_bn,0)}억 원 · 외국인 ${f(x.frgn20_bn,0)}억 원 · 전환 ${esc(x.inst_turn_date)||"-"} · 목표가 괴리 ${f(x.target_gap_pct,0)}%${x.gap_to_turn_bn!=null?` · 전환까지 ${f(x.gap_to_turn_bn,0)}억 원`:""}${x.flags&&x.flags.length?" · "+x.flags.map(esc).join(", "):""}</div></div>`;}
 const get=u=>fetch(u+"?t="+Date.now()).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.json()});
 Promise.all([get(Q?`samples/${Q}.json`:"status.json"),Q?null:get("heartbeat.json").catch(()=>null)]).then(([s,hb])=>render(s,hb))
