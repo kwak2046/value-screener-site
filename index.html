@@ -56,7 +56,7 @@ function render(s,hb){
 function cand(x){return `<div class="card"><div class="row"><b><a href="${nv(esc(x.code))}">${esc(x.name)}</a> <span class="mut">${esc(x.sector)}</span></b><b>${f(x.score,0)}</b></div>
   <div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(x.score)||0))}%"></i></div>
   <div class="mut">저평가 ${f(x.val,0)} · 질 ${f(x.qual,0)} · 수급 ${f(x.flow,0)} · PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)} · 배당 ${f(x.div)}% · 3년PBR ${f(x.pbr_pct3y,0)}% · 싼 지 ${f(x.cheap_months,0)}개월</div>
-  <div class="mut">기관20일 ${f(x.inst20_bn,0)}억 · 개인 ${f(x.indiv20_bn,0)}억 · 외국인 ${f(x.frgn20_bn,0)}억 · 전환 ${esc(x.inst_turn_date)||"-"} · 목표가 괴리 ${f(x.target_gap_pct,0)}%${x.gap_to_turn_bn!=null?` · 전환까지 ${f(x.gap_to_turn_bn,0)}억`:""}${x.flags&&x.flags.length?" · "+x.flags.map(esc).join(", "):""}</div></div>`;}
+  <div class="mut">기관20일 ${f(x.inst20_bn,0)}억 원 · 개인 ${f(x.indiv20_bn,0)}억 원 · 외국인 ${f(x.frgn20_bn,0)}억 원 · 전환 ${esc(x.inst_turn_date)||"-"} · 목표가 괴리 ${f(x.target_gap_pct,0)}%${x.gap_to_turn_bn!=null?` · 전환까지 ${f(x.gap_to_turn_bn,0)}억 원`:""}${x.flags&&x.flags.length?" · "+x.flags.map(esc).join(", "):""}</div></div>`;}
 const get=u=>fetch(u+"?t="+Date.now()).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.json()});
 Promise.all([get(Q?`samples/${Q}.json`:"status.json"),Q?null:get("heartbeat.json").catch(()=>null)]).then(([s,hb])=>render(s,hb))
   .catch(e=>document.getElementById("app").innerHTML=`<div class="hero" style="background:${C.gray}"><h1>데이터를 읽을 수 없음</h1><small>${esc(e)}</small></div>`);
