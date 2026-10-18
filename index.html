@@ -1,0 +1,63 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>가치 스크리너</title><link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#111;--mut:#667;--red:#d93025;--yellow:#e0a800;--green:#2e9e4f;--blue:#2b6fd6;--gray:#8a8f98;--track:#dde}
+@media(prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e26;--fg:#eee;--mut:#9aa;--track:#2c303a}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,"Malgun Gothic",sans-serif;padding:16px;max-width:720px;margin:auto}
+.hero{border-radius:16px;padding:20px;color:#fff;margin-bottom:14px}.hero h1{margin:0 0 6px;font-size:20px}.hero small{opacity:.9}
+.card{background:var(--card);border-radius:12px;padding:12px 14px;margin:8px 0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.row{display:flex;justify-content:space-between;gap:8px}.mut{color:var(--mut);font-size:13px}
+.bar{height:6px;background:var(--track);border-radius:3px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--blue)}
+details summary{cursor:pointer;font-weight:600;margin:14px 0 6px}a{color:inherit;text-decoration:none}h2{font-size:16px;margin:18px 0 6px}
+</style></head><body>
+<div id="app">불러오는 중…</div>
+<script>
+const C={red:"var(--red)",yellow:"var(--yellow)",green:"var(--green)",blue:"var(--blue)",gray:"var(--gray)"};
+const KR={red:"빨강 · 즉시 점검",yellow:"노랑 · 주의",green:"초록 · 정상",blue:"파랑 · 해소 진행/매도 검토",gray:"회색 · 데이터 지연"};
+const nv=c=>`https://m.stock.naver.com/domestic/stock/${c}/total`;
+const f=(v,d=1)=>v==null?"-":Number(v).toLocaleString("ko-KR",{maximumFractionDigits:d});
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const Q=new URLSearchParams(location.search).get("sample");
+// isStale:begin — 마지막 신호 이후 첫 평일(월~금) 18:40 KST 정규 실행 + 4시간이 지나면 지연(주말·휴장일엔 회색 안 됨)
+function isStale(lastIso,nowIso){
+  const K=9*36e5,t=Date.parse(lastIso)+K,n=Date.parse(nowIso)+K;
+  if(!isFinite(t)||!isFinite(n))return true;
+  const d=new Date(t);let c=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),18,40);
+  if(c<=t)c+=864e5;
+  while(new Date(c).getUTCDay()%6===0)c+=864e5;
+  return n>c+4*36e5;}
+// isStale:end
+function render(s,hb){
+  const H=s.holdings||[],Cands=s.candidates||[],W=s.watchlist||[],counts=s.counts||{};
+  const hbT=hb?Date.parse(hb.checked_at):NaN;           // heartbeat.json: 휴장일 실행 기록(없으면 무시)
+  const last=hbT>Date.parse(s.updated_at)?hb.checked_at:s.updated_at;
+  const age=(Date.now()-Date.parse(last))/36e5;
+  // ?sample=X(stale 제외)는 고정 updated_at이 시간이 지나도 회색이 되지 않도록 나이 검사를 건너뜀
+  const stale=(Q&&Q!=="stale")?false:isStale(last,new Date().toISOString());
+  const color=(stale||!C[s.color])?"gray":s.color;
+  let h=`<div class="hero" style="background:${C[color]}${color==="yellow"||color==="gray"?";color:#111":""}"><h1>${KR[color]}</h1><div>${esc(s.summary)}</div>
+    <small>기준일 ${esc(s.data_date)} · 갱신 ${s.updated_at?esc(new Date(s.updated_at).toLocaleString("ko-KR")):"-"}${stale&&isFinite(age)?" · ⚠ 마지막 성공 이후 "+Math.round(Math.max(0,age))+"시간":""}</small>
+    ${s.sector_warning?`<div>⚠ 업종 집중: ${esc(s.sector_warning)}</div>`:""}</div>`;
+  const Wn=s.warnings||[];
+  if(Wn.length)h+=`<div class="card"><b>⚠ 경고 ${Wn.length}건</b><ul style="margin:4px 0 0;padding-left:20px">${Wn.map(w=>`<li>${esc(w)}</li>`).join("")}</ul></div>`;
+  h+=`<h2>보유·관찰 종목 (${H.length})</h2>`;
+  for(const x of H){h+=`<div class="card"><div class="row"><b><span class="dot" style="background:${C[C[x.color]?x.color:"gray"]}"></span><a href="${nv(esc(x.code))}">${esc(x.name)}</a> <span class="mut">${esc(x.status)}</span></b>
+    <span class="mut">PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)}</span></div>
+    ${x.reasons&&x.reasons.length?`<div>• ${x.reasons.map(esc).join("<br>• ")}</div>`:""}
+    ${x.trigger?`<div class="mut">해소 트리거: ${esc(x.trigger)}</div>`:""}${x.invalidation?`<div class="mut">무효화 조건: ${esc(x.invalidation)}</div>`:""}
+    ${x.next_check?`<div class="mut">다음 점검일 ${esc(x.next_check)}</div>`:""}</div>`;}
+  if(!H.length)h+=`<div class="card mut">portfolio/watch.csv에 종목을 적으면 여기에 나타납니다</div>`;
+  h+=`<h2>후보 TOP${Cands.length}</h2>`;
+  for(const x of Cands)h+=cand(x);
+  h+=`<details><summary>관찰 대기 (${W.length})</summary>${W.map(cand).join("")}</details>
+  <p class="mut">유니버스 ${f(counts.universe,0)}종목 · 금액은 수량×종가 근사(억 원) · 자료: 네이버 금융</p>`;
+  document.getElementById("app").innerHTML=h;}
+function cand(x){return `<div class="card"><div class="row"><b><a href="${nv(esc(x.code))}">${esc(x.name)}</a> <span class="mut">${esc(x.sector)}</span></b><b>${f(x.score,0)}</b></div>
+  <div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(x.score)||0))}%"></i></div>
+  <div class="mut">저평가 ${f(x.val,0)} · 질 ${f(x.qual,0)} · 수급 ${f(x.flow,0)} · PBR ${f(x.pbr,2)} · 추정PER(없으면 실적) ${f(x.per_f)} · 배당 ${f(x.div)}% · 3년PBR ${f(x.pbr_pct3y,0)}% · 싼 지 ${f(x.cheap_months,0)}개월</div>
+  <div class="mut">기관20일 ${f(x.inst20_bn,0)}억 · 개인 ${f(x.indiv20_bn,0)}억 · 외국인 ${f(x.frgn20_bn,0)}억 · 전환 ${esc(x.inst_turn_date)||"-"} · 목표가 괴리 ${f(x.target_gap_pct,0)}%${x.gap_to_turn_bn!=null?` · 전환까지 ${f(x.gap_to_turn_bn,0)}억`:""}${x.flags&&x.flags.length?" · "+x.flags.map(esc).join(", "):""}</div></div>`;}
+const get=u=>fetch(u+"?t="+Date.now()).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.json()});
+Promise.all([get(Q?`samples/${Q}.json`:"status.json"),Q?null:get("heartbeat.json").catch(()=>null)]).then(([s,hb])=>render(s,hb))
+  .catch(e=>document.getElementById("app").innerHTML=`<div class="hero" style="background:${C.gray}"><h1>데이터를 읽을 수 없음</h1><small>${esc(e)}</small></div>`);
+</script></body></html>
